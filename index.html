@@ -81,12 +81,11 @@
 
   <div class="toast" id="toast">Copied!</div>
 
-  <!-- Firebase SDKs (Compat builds keep code simple in one file) -->
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 
   <script>
-    // 1) Fill your Firebase config here (Project Settings → General → Your apps → CDN snippet)
+    // 🔑 Replace with your Firebase config
     const firebaseConfig = {
       apiKey: "YOUR_API_KEY",
       authDomain: "YOUR_PROJECT.firebaseapp.com",
@@ -97,7 +96,6 @@
       appId: "YOUR_APP_ID"
     };
 
-    // --- helpers ---
     const $ = (q)=>document.querySelector(q)
     const boardEl = $('#board');
     const statusEl = $('#statusLine');
@@ -110,22 +108,24 @@
     const uid = localStorage.getItem('ttt_uid') || (()=>{const u = crypto.randomUUID(); localStorage.setItem('ttt_uid', u); return u})()
 
     function randomRoomId(){
-      const s = Math.random().toString(36).slice(2,8);
-      return s.toLowerCase();
+      return Math.random().toString(36).slice(2,8).toLowerCase();
     }
     function getParam(name){
       return new URL(location.href).searchParams.get(name);
     }
     function setParam(name, val){
-      const u = new URL(location.href);
-      u.searchParams.set(name, val);
-      history.replaceState({}, '', u);
+      try {
+        const u = new URL(location.href);
+        u.searchParams.set(name, val);
+        if (location.protocol.startsWith('http')) {
+          history.replaceState({}, '', u);
+        }
+      } catch(e){ console.warn('Sandboxed: cannot replaceState'); }
     }
     function showToast(msg){
       const t = $('#toast'); t.textContent = msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'), 1200)
     }
 
-    // --- firebase ---
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
@@ -137,9 +137,8 @@
     ];
 
     let roomId = getParam('room');
-    let role = 'spectator'; // 'X' | 'O' | 'spectator'
+    let role = 'spectator'; 
 
-    // UI: build cells
     const cells = [];
     for(let i=0;i<9;i++){
       const c = document.createElement('button');
@@ -171,7 +170,6 @@
         role = 'X';
       }else{
         const data = snap.val();
-        // try to seat the user
         if(!data.players?.X){ await ref.child('players/X').set(uid); role='X'; }
         else if(data.players?.X===uid){ role='X'; }
         else if(!data.players?.O){ await ref.child('players/O').set(uid); role='O'; }
@@ -181,16 +179,14 @@
       youTag.textContent = role.toString();
       spectatorTag.style.display = role==='spectator' ? 'inline-flex' : 'none';
 
-      // presence-ish: remove seat on unload if board is fresh
       window.addEventListener('beforeunload', async ()=>{
         const s = (await ref.get()).val();
-        if(s && s.status!=='playing'){ // don't kick during an active game
+        if(s && s.status!=='playing'){
           if(role==='X' && s.players?.X===uid) await ref.child('players/X').set('');
           if(role==='O' && s.players?.O===uid) await ref.child('players/O').set('');
         }
       });
 
-      // subscribe to room changes
       ref.on('value', (snap)=>{
         if(!snap.exists()) return;
         const g = snap.val();
@@ -199,25 +195,19 @@
     }
 
     function updateUI(g){
-      // seats & state
       const bothSeated = Boolean(g.players?.X && g.players?.O);
-      const playable = g.status==='playing' || (g.status==='waiting' && bothSeated);
-      // auto move to playing when both present
       if(g.status==='waiting' && bothSeated){
         db.ref(`rooms/${roomId}/status`).set('playing');
       }
 
-      // board
       g.board.forEach((v, i)=>{ cells[i].textContent = v; });
 
-      // controls
       const myTurn = role!=='spectator' && g.turn===role && g.status==='playing';
       cells.forEach((c,i)=>{
         const canPlay = myTurn && !g.board[i];
         c.toggleAttribute('disabled', !canPlay);
       });
 
-      // status line
       let msg = '';
       if(role==='spectator') msg += 'You are spectating. ';
       if(g.status==='waiting') msg += 'Waiting for an opponent to join…';
@@ -228,15 +218,12 @@
       if(g.status==='draw') msg = 'Draw.';
       statusEl.textContent = msg;
 
-      // tags
       turnTag.textContent = g.status==='playing' ? g.turn : '—';
 
-      // decorate winner cells
       const w = checkWinner(g.board);
       cells.forEach(c=>c.style.outline='none');
       if(w){ w.combo.forEach(i=>{ cells[i].style.outline = '3px solid var(--win)'; }); }
 
-      // buttons
       $('#swapBtn').disabled = !((role==='X' && !g.players.O) || (role==='O' && !g.players.X));
     }
 
@@ -288,7 +275,6 @@
       youTag.textContent = role;
     }
 
-    // --- UI wireup ---
     $('#copyLinkBtn').addEventListener('click', async ()=>{
       await navigator.clipboard.writeText(location.href);
       showToast('Link copied!');
@@ -299,31 +285,7 @@
     $('#resetBtn').addEventListener('click', resetGame);
     $('#swapBtn').addEventListener('click', swapSeat);
 
-    // boot
     ensureRoom();
   </script>
-
-  <!--
-  QUICK START
-  ===========
-  1) Create a Firebase project → Add Realtime Database → Start in test mode (for quick try). 
-     (Later tighten rules.)
-
-  2) Copy your Web app config and paste it into firebaseConfig above.
-
-  3) Open this HTML file locally (double-click) or host it anywhere. It will work in a browser.
-
-  4) Send your link (it includes ?room=xxxx). First opener becomes X, second becomes O.
-
-  SIMPLE RULES (for quick testing only):
-  {
-    "rules": { 
-      ".read": true,
-      ".write": true 
-    }
-  }
-
-  Safer rules are possible (scoping to specific room paths and fields), but left out to keep the file short.
-  -->
 </body>
 </html>
