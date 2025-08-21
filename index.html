@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Online Tic Tac Toe</title>
+  <meta name="description" content="Play tic tac toe online with a friend by sharing a link. Firebase Realtime Database, single-file HTML." />
+  <style>
+    :root{
+      --bg: #0b1220;         /* deep navy */
+      --card:#111827;
+      --muted:#9ca3af;
+      --acc:#06b6d4;         /* cyan */
+      --acc2:#a78bfa;        /* violet */
+      --text:#e5e7eb;
+      --win:#22c55e;
+      --lose:#ef4444;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;background:radial-gradient(1200px 600px at 10% -10%, rgba(167,139,250,.15), transparent 60%),radial-gradient(1000px 600px at 110% 10%, rgba(6,182,212,.15), transparent 60%), var(--bg); color:var(--text); font:500 16px/1.3 system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, 'Helvetica Neue', Arial, 'Apple Color Emoji','Segoe UI Emoji'; min-height:100dvh; display:grid; place-items:center;}
+    .wrap{width:min(920px, 92vw);}
+    .card{background:linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.02)); border:1px solid rgba(255,255,255,.08); border-radius:24px; padding:24px; box-shadow:0 10px 30px rgba(0,0,0,.25);}
+    header{display:flex; gap:14px; align-items:center; justify-content:space-between; flex-wrap:wrap}
+    h1{font-size:clamp(20px, 2vw + 12px, 28px); margin:0; letter-spacing:.3px}
+    .muted{color:var(--muted)}
+    .row{display:flex; gap:10px; align-items:center; flex-wrap:wrap}
+    .row > * {flex: none}
+    .btn{appearance:none; border:1px solid rgba(255,255,255,.12); background:rgba(255,255,255,.06); color:var(--text); padding:10px 14px; border-radius:12px; cursor:pointer; transition:.2s transform, .2s background; font-weight:600}
+    .btn:hover{background:rgba(255,255,255,.1)}
+    .btn:active{transform:translateY(1px)}
+    .btn.primary{background:linear-gradient(135deg, var(--acc), var(--acc2)); border:none; color:#0b1020}
+    .tag{padding:6px 10px; border-radius:999px; background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.1); font-weight:700; letter-spacing:.5px}
+    .grid{display:grid; grid-template-columns:repeat(3, 1fr); gap:10px; width:min(420px, 92vw); margin:18px auto}
+    .cell{width:100%; aspect-ratio:1/1; display:grid; place-items:center; font-weight:900; font-size:clamp(42px, 8vw, 72px); border-radius:18px; background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.1); cursor:pointer; user-select:none; position:relative; overflow:hidden}
+    .cell[disabled]{cursor:not-allowed; opacity:.5}
+    .cell:hover{background:rgba(255,255,255,.08)}
+    .you{font-weight:800}
+    .status{font-size:clamp(16px, 1.2vw + 10px, 20px); margin-top:6px}
+    .small{font-size:13px}
+    .footer{display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; align-items:center; margin-top:14px}
+    .input{background:#0f172a; color:var(--text); border:1px solid rgba(255,255,255,.12); padding:10px 12px; border-radius:10px; width:260px}
+    code.inline{padding:.2em .45em; background:#0f172a; border:1px solid rgba(255,255,255,.12); border-radius:8px}
+    .toast{position:fixed; inset:auto 16px 16px auto; background:#111827; border:1px solid rgba(255,255,255,.12); padding:10px 12px; border-radius:10px; opacity:0; transform:translateY(8px); transition:.25s;}
+    .toast.show{opacity:1; transform:translateY(0)}
+    .win{color:var(--win)}
+    .lose{color:var(--lose)}
+  </style>
+</head>
+<body>
+  <div class="wrap card">
+    <header>
+      <div>
+        <h1>Online Tic Tac Toe</h1>
+        <div class="muted small">Share your link with a friend. First join is <b>X</b>, second is <b>O</b>.</div>
+      </div>
+      <div class="row">
+        <button class="btn" id="copyLinkBtn">Copy game link</button>
+        <button class="btn" id="newRoomBtn">New room</button>
+      </div>
+    </header>
+
+    <div class="row" style="margin-top:10px">
+      <div class="tag">Room: <span id="roomTag">—</span></div>
+      <div class="tag">You: <span class="you" id="youTag">…</span></div>
+      <div class="tag">Turn: <span id="turnTag">—</span></div>
+      <div class="tag" id="spectatorTag" style="display:none">Spectating</div>
+    </div>
+
+    <div class="grid" id="board"></div>
+
+    <div class="status" id="statusLine">Connecting…</div>
+
+    <div class="footer">
+      <div class="row">
+        <button class="btn primary" id="resetBtn">Reset game</button>
+        <button class="btn" id="swapBtn" title="Swap seats if empty">Swap X↔O</button>
+      </div>
+      <div class="small muted">Tip: send this link to a friend → <code class="inline" id="linkPreview">—</code></div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast">Copied!</div>
+
+  <!-- Firebase SDKs (Compat builds keep code simple in one file) -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+
+  <script>
+    // 1) Fill your Firebase config here (Project Settings → General → Your apps → CDN snippet)
+    const firebaseConfig = {
+      apiKey: "YOUR_API_KEY",
+      authDomain: "YOUR_PROJECT.firebaseapp.com",
+      databaseURL: "https://YOUR_PROJECT-default-rtdb.firebaseio.com",
+      projectId: "YOUR_PROJECT",
+      storageBucket: "YOUR_PROJECT.appspot.com",
+      messagingSenderId: "YOUR_SENDER_ID",
+      appId: "YOUR_APP_ID"
+    };
+
+    // --- helpers ---
+    const $ = (q)=>document.querySelector(q)
+    const boardEl = $('#board');
+    const statusEl = $('#statusLine');
+    const roomTag = $('#roomTag');
+    const youTag = $('#youTag');
+    const turnTag = $('#turnTag');
+    const linkPreview = $('#linkPreview');
+    const spectatorTag = $('#spectatorTag');
+
+    const uid = localStorage.getItem('ttt_uid') || (()=>{const u = crypto.randomUUID(); localStorage.setItem('ttt_uid', u); return u})()
+
+    function randomRoomId(){
+      const s = Math.random().toString(36).slice(2,8);
+      return s.toLowerCase();
+    }
+    function getParam(name){
+      return new URL(location.href).searchParams.get(name);
+    }
+    function setParam(name, val){
+      const u = new URL(location.href);
+      u.searchParams.set(name, val);
+      history.replaceState({}, '', u);
+    }
+    function showToast(msg){
+      const t = $('#toast'); t.textContent = msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'), 1200)
+    }
+
+    // --- firebase ---
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    const emptyBoard = Array(9).fill('');
+    const wins = [
+      [0,1,2],[3,4,5],[6,7,8],
+      [0,3,6],[1,4,7],[2,5,8],
+      [0,4,8],[2,4,6]
+    ];
+
+    let roomId = getParam('room');
+    let role = 'spectator'; // 'X' | 'O' | 'spectator'
+
+    // UI: build cells
+    const cells = [];
+    for(let i=0;i<9;i++){
+      const c = document.createElement('button');
+      c.className = 'cell';
+      c.dataset.idx = i;
+      c.addEventListener('click', ()=>makeMove(i));
+      boardEl.appendChild(c);
+      cells.push(c);
+    }
+
+    async function ensureRoom(){
+      if(!roomId){
+        roomId = randomRoomId();
+        setParam('room', roomId);
+      }
+      roomTag.textContent = roomId;
+      linkPreview.textContent = location.href;
+
+      const ref = db.ref(`rooms/${roomId}`);
+      const snap = await ref.get();
+      if(!snap.exists()){
+        await ref.set({
+          createdAt: Date.now(),
+          board: emptyBoard,
+          turn: 'X',
+          status: 'waiting',
+          players: { X: uid, O: '' }
+        });
+        role = 'X';
+      }else{
+        const data = snap.val();
+        // try to seat the user
+        if(!data.players?.X){ await ref.child('players/X').set(uid); role='X'; }
+        else if(data.players?.X===uid){ role='X'; }
+        else if(!data.players?.O){ await ref.child('players/O').set(uid); role='O'; }
+        else if(data.players?.O===uid){ role='O'; }
+        else { role='spectator'; }
+      }
+      youTag.textContent = role.toString();
+      spectatorTag.style.display = role==='spectator' ? 'inline-flex' : 'none';
+
+      // presence-ish: remove seat on unload if board is fresh
+      window.addEventListener('beforeunload', async ()=>{
+        const s = (await ref.get()).val();
+        if(s && s.status!=='playing'){ // don't kick during an active game
+          if(role==='X' && s.players?.X===uid) await ref.child('players/X').set('');
+          if(role==='O' && s.players?.O===uid) await ref.child('players/O').set('');
+        }
+      });
+
+      // subscribe to room changes
+      ref.on('value', (snap)=>{
+        if(!snap.exists()) return;
+        const g = snap.val();
+        updateUI(g);
+      });
+    }
+
+    function updateUI(g){
+      // seats & state
+      const bothSeated = Boolean(g.players?.X && g.players?.O);
+      const playable = g.status==='playing' || (g.status==='waiting' && bothSeated);
+      // auto move to playing when both present
+      if(g.status==='waiting' && bothSeated){
+        db.ref(`rooms/${roomId}/status`).set('playing');
+      }
+
+      // board
+      g.board.forEach((v, i)=>{ cells[i].textContent = v; });
+
+      // controls
+      const myTurn = role!=='spectator' && g.turn===role && g.status==='playing';
+      cells.forEach((c,i)=>{
+        const canPlay = myTurn && !g.board[i];
+        c.toggleAttribute('disabled', !canPlay);
+      });
+
+      // status line
+      let msg = '';
+      if(role==='spectator') msg += 'You are spectating. ';
+      if(g.status==='waiting') msg += 'Waiting for an opponent to join…';
+      if(g.status==='playing') msg += (role!=='spectator' ? (g.turn===role? 'Your move!' : 'Opponent’s move…') : `Turn: ${g.turn}`);
+      if(g.status==='X_won' || g.status==='O_won'){
+        msg = (role.toString() === g.status[0] ? 'You win! 🎉' : (role==='spectator' ? `${g.status[0]} wins!` : 'You lose.'));
+      }
+      if(g.status==='draw') msg = 'Draw.';
+      statusEl.textContent = msg;
+
+      // tags
+      turnTag.textContent = g.status==='playing' ? g.turn : '—';
+
+      // decorate winner cells
+      const w = checkWinner(g.board);
+      cells.forEach(c=>c.style.outline='none');
+      if(w){ w.combo.forEach(i=>{ cells[i].style.outline = '3px solid var(--win)'; }); }
+
+      // buttons
+      $('#swapBtn').disabled = !((role==='X' && !g.players.O) || (role==='O' && !g.players.X));
+    }
+
+    function checkWinner(b){
+      for(const combo of wins){
+        const [a,b2,c] = combo;
+        if(b[a] && b[a]===b[b2] && b[a]===b[c]) return {player:b[a], combo};
+      }
+      if(b.every(x=>x)) return {player:'draw', combo:[]};
+      return null;
+    }
+
+    async function makeMove(i){
+      const ref = db.ref(`rooms/${roomId}`);
+      const snap = await ref.get();
+      if(!snap.exists()) return;
+      const g = snap.val();
+
+      if(g.status!=='playing') return;
+      if(g.turn!==role) return;
+      if(g.board[i]) return;
+
+      const nb = g.board.slice();
+      nb[i] = role;
+      const w = checkWinner(nb);
+
+      const updates = { board: nb, turn: (role==='X'?'O':'X') };
+      if(w){
+        if(w.player==='draw'){ updates.status='draw'; updates.turn='—'; }
+        else { updates.status = `${w.player}_won`; updates.turn='—'; }
+      }
+      await ref.update(updates);
+    }
+
+    async function resetGame(){
+      const ref = db.ref(`rooms/${roomId}`);
+      const snap = await ref.get();
+      if(!snap.exists()) return;
+      const g = snap.val();
+      await ref.update({ board: emptyBoard, status: g.players?.X && g.players?.O ? 'playing' : 'waiting', turn: 'X' });
+    }
+
+    async function swapSeat(){
+      const ref = db.ref(`rooms/${roomId}/players`);
+      const snap = await ref.get();
+      const p = snap.val() || {X:'',O:''};
+      if(role==='X' && !p.O){ await ref.update({X:'', O:uid}); role='O'; }
+      else if(role==='O' && !p.X){ await ref.update({O:'', X:uid}); role='X'; }
+      youTag.textContent = role;
+    }
+
+    // --- UI wireup ---
+    $('#copyLinkBtn').addEventListener('click', async ()=>{
+      await navigator.clipboard.writeText(location.href);
+      showToast('Link copied!');
+    });
+    $('#newRoomBtn').addEventListener('click', ()=>{
+      location.href = location.pathname + '?room=' + randomRoomId();
+    });
+    $('#resetBtn').addEventListener('click', resetGame);
+    $('#swapBtn').addEventListener('click', swapSeat);
+
+    // boot
+    ensureRoom();
+  </script>
+
+  <!--
+  QUICK START
+  ===========
+  1) Create a Firebase project → Add Realtime Database → Start in test mode (for quick try). 
+     (Later tighten rules.)
+
+  2) Copy your Web app config and paste it into firebaseConfig above.
+
+  3) Open this HTML file locally (double-click) or host it anywhere. It will work in a browser.
+
+  4) Send your link (it includes ?room=xxxx). First opener becomes X, second becomes O.
+
+  SIMPLE RULES (for quick testing only):
+  {
+    "rules": { 
+      ".read": true,
+      ".write": true 
+    }
+  }
+
+  Safer rules are possible (scoping to specific room paths and fields), but left out to keep the file short.
+  -->
+</body>
+</html>
