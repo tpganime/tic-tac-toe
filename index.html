@@ -5,84 +5,87 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Online Tic Tac Toe</title>
   <style>
-    :root{
-      --bg: #0b1220;
-      --card:#111827;
-      --muted:#9ca3af;
-      --acc:#06b6d4;
-      --acc2:#a78bfa;
-      --text:#e5e7eb;
-      --win:#22c55e;
-      --lose:#ef4444;
+    body {
+      margin: 0;
+      background: linear-gradient(135deg, #141E30, #243B55);
+      font: 500 16px/1.3 system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell;
+      color: #e5e7eb;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
-    *{box-sizing:border-box}
-    body{margin:0;background:radial-gradient(1200px 600px at 10% -10%, rgba(167,139,250,.15), transparent 60%),radial-gradient(1000px 600px at 110% 10%, rgba(6,182,212,.15), transparent 60%), var(--bg); color:var(--text); font:500 16px/1.3 system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell; min-height:100dvh; display:grid; place-items:center;}
-    .wrap{width:min(920px, 92vw);}
-    .card{background:linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.02)); border:1px solid rgba(255,255,255,.08); border-radius:24px; padding:24px; box-shadow:0 10px 30px rgba(0,0,0,.25);}
-    header{display:flex; gap:14px; align-items:center; justify-content:space-between; flex-wrap:wrap}
-    h1{font-size:clamp(20px, 2vw + 12px, 28px); margin:0; letter-spacing:.3px}
-    .muted{color:var(--muted)}
-    .row{display:flex; gap:10px; align-items:center; flex-wrap:wrap}
-    .btn{appearance:none; border:1px solid rgba(255,255,255,.12); background:rgba(255,255,255,.06); color:var(--text); padding:10px 14px; border-radius:12px; cursor:pointer; transition:.2s transform, .2s background; font-weight:600}
-    .btn:hover{background:rgba(255,255,255,.1)}
-    .btn:active{transform:translateY(1px)}
-    .btn.primary{background:linear-gradient(135deg, var(--acc), var(--acc2)); border:none; color:#0b1020}
-    .tag{padding:6px 10px; border-radius:999px; background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.1); font-weight:700; letter-spacing:.5px}
-    .grid{display:grid; grid-template-columns:repeat(3, 1fr); gap:10px; width:min(420px, 92vw); margin:18px auto}
-    .cell{width:100%; aspect-ratio:1/1; display:grid; place-items:center; font-weight:900; font-size:clamp(42px, 8vw, 72px); border-radius:18px; background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.1); cursor:pointer; user-select:none}
-    .cell[disabled]{cursor:not-allowed; opacity:.5}
-    .status{font-size:clamp(16px, 1.2vw + 10px, 20px); margin-top:6px}
-    .small{font-size:13px}
-    .footer{display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; align-items:center; margin-top:14px}
-    .input{background:#0f172a; color:var(--text); border:1px solid rgba(255,255,255,.12); padding:10px 12px; border-radius:10px; width:160px}
-    code.inline{padding:.2em .45em; background:#0f172a; border:1px solid rgba(255,255,255,.12); border-radius:8px}
-    .toast{position:fixed; inset:auto 16px 16px auto; background:#111827; border:1px solid rgba(255,255,255,.12); padding:10px 12px; border-radius:10px; opacity:0; transform:translateY(8px); transition:.25s;}
-    .toast.show{opacity:1; transform:translateY(0)}
+    .card {
+      background: rgba(255,255,255,.05);
+      border: 1px solid rgba(255,255,255,.1);
+      border-radius: 20px;
+      padding: 24px;
+      width: min(400px, 90%);
+      text-align: center;
+      box-shadow: 0 10px 30px rgba(0,0,0,.25);
+    }
+    h1 { margin: 0 0 16px; font-size: 26px; }
+    .btn {
+      display: inline-block;
+      padding: 12px 18px;
+      margin: 8px;
+      border-radius: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      color: #fff;
+      background: linear-gradient(135deg, #06b6d4, #a78bfa);
+    }
+    .btn:hover { opacity: .9; }
+    .input {
+      padding: 10px;
+      border-radius: 10px;
+      border: 1px solid rgba(255,255,255,.2);
+      margin: 10px 0;
+      width: 80%;
+      background: #0f172a;
+      color: #fff;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      margin: 20px auto;
+      max-width: 260px;
+    }
+    .cell {
+      width: 80px; height: 80px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 2rem; font-weight: bold;
+      border-radius: 12px;
+      background: rgba(255,255,255,.1);
+      cursor: pointer;
+    }
+    .cell[disabled] { opacity: .5; cursor: not-allowed; }
+    .status { margin-top: 10px; font-weight: 600; }
   </style>
 </head>
 <body>
-  <div class="wrap card">
-    <header>
-      <div>
-        <h1>Online Tic Tac Toe</h1>
-        <div class="muted small">Share your link with a friend. First join is <b>X</b>, second is <b>O</b>.</div>
-      </div>
-      <div class="row">
-        <button class="btn" id="copyLinkBtn">Copy game link</button>
-        <button class="btn" id="newRoomBtn">New room</button>
-      </div>
-    </header>
-
-    <div class="row" style="margin-top:10px">
-      <div class="tag">Room: <span id="roomTag">—</span></div>
-      <div class="tag">You: <span class="you" id="youTag">…</span></div>
-      <div class="tag">Turn: <span id="turnTag">—</span></div>
-      <div class="tag" id="spectatorTag" style="display:none">Spectating</div>
-    </div>
-
-    <!-- NEW: Join by Code -->
-    <div class="row" id="joinRow" style="margin-top:10px; display:none">
-      <input id="joinCodeInput" class="input" placeholder="Enter code">
-      <button class="btn primary" id="joinBtn">Join Room</button>
-    </div>
-
-    <div class="grid" id="board"></div>
-    <div class="status" id="statusLine">Connecting…</div>
-
-    <div class="footer">
-      <div class="row">
-        <button class="btn primary" id="resetBtn">Reset game</button>
-        <button class="btn" id="swapBtn" title="Swap seats if empty">Swap X↔O</button>
-      </div>
-      <div class="small muted">Tip: send this link to a friend → <code class="inline" id="linkPreview">—</code></div>
+  <div class="card" id="menu">
+    <h1>Online Tic Tac Toe</h1>
+    <button class="btn" id="hostBtn">Host Game</button>
+    <button class="btn" id="joinBtn">Join Game</button>
+    <div id="joinBox" style="display:none;">
+      <input class="input" id="codeInput" placeholder="Enter code" />
+      <button class="btn" id="enterBtn">Join</button>
     </div>
   </div>
 
-  <div class="toast" id="toast">Copied!</div>
+  <div class="card" id="game" style="display:none;">
+    <h1>Tic Tac Toe</h1>
+    <div>Room Code: <b id="roomCode">—</b></div>
+    <div class="grid" id="board"></div>
+    <div class="status" id="statusLine">Connecting…</div>
+    <button class="btn" id="resetBtn">Reset Game</button>
+  </div>
 
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
-
   <script>
     // 🔑 Replace with your Firebase config
     const firebaseConfig = {
@@ -94,47 +97,18 @@
       messagingSenderId: "YOUR_SENDER_ID",
       appId: "YOUR_APP_ID"
     };
-
-    const $ = (q)=>document.querySelector(q)
-    const boardEl = $('#board');
-    const statusEl = $('#statusLine');
-    const roomTag = $('#roomTag');
-    const youTag = $('#youTag');
-    const turnTag = $('#turnTag');
-    const linkPreview = $('#linkPreview');
-    const spectatorTag = $('#spectatorTag');
-    const joinRow = $('#joinRow');
-    const joinCodeInput = $('#joinCodeInput');
-    const joinBtn = $('#joinBtn');
-
-    const uid = localStorage.getItem('ttt_uid') || (()=>{const u = crypto.randomUUID(); localStorage.setItem('ttt_uid', u); return u})()
-
-    function randomRoomId(){ return Math.random().toString(36).slice(2,8).toLowerCase(); }
-    function getParam(name){ return new URL(location.href).searchParams.get(name); }
-    function setParam(name, val){
-      try {
-        const u = new URL(location.href);
-        u.searchParams.set(name, val);
-        if (location.protocol.startsWith('http')) history.replaceState({}, '', u);
-      } catch(e){}
-    }
-    function showToast(msg){
-      const t = $('#toast'); t.textContent = msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'), 1200)
-    }
-
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
+    const uid = localStorage.getItem('ttt_uid') || (()=>{const u=crypto.randomUUID();localStorage.setItem('ttt_uid',u);return u})();
     const emptyBoard = Array(9).fill('');
-    const wins = [
-      [0,1,2],[3,4,5],[6,7,8],
-      [0,3,6],[1,4,7],[2,5,8],
-      [0,4,8],[2,4,6]
-    ];
-
-    let roomId = getParam('room');
-    let role = 'spectator';
+    const wins = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
+    let role = 'spectator', roomId = null;
     const cells = [];
+
+    const boardEl = document.getElementById('board');
+    const statusEl = document.getElementById('statusLine');
+    const roomCodeEl = document.getElementById('roomCode');
 
     for(let i=0;i<9;i++){
       const c = document.createElement('button');
@@ -144,78 +118,73 @@
       cells.push(c);
     }
 
-    async function ensureRoom(){
-      if(!roomId){
-        // show join option if no room in URL
-        joinRow.style.display = 'flex';
-        statusEl.textContent = 'Enter code to join or click New Room';
-        return;
-      }
-      roomTag.textContent = roomId;
-      linkPreview.textContent = location.href;
+    function randomRoomId(){ return Math.random().toString(36).slice(2,8).toUpperCase(); }
 
-      const ref = db.ref(`rooms/${roomId}`);
+    document.getElementById('hostBtn').onclick = async ()=>{
+      roomId = randomRoomId();
+      roomCodeEl.textContent = roomId;
+      document.getElementById('menu').style.display='none';
+      document.getElementById('game').style.display='block';
+      const ref = db.ref('rooms/'+roomId);
+      await ref.set({board:emptyBoard, turn:'X', status:'waiting', players:{X:uid,O:''}});
+      role='X';
+      ref.on('value', snap=>{ if(snap.exists()) updateUI(snap.val()); });
+    };
+
+    document.getElementById('joinBtn').onclick = ()=>{
+      document.getElementById('joinBox').style.display='block';
+    };
+
+    document.getElementById('enterBtn').onclick = async ()=>{
+      const code = document.getElementById('codeInput').value.trim().toUpperCase();
+      if(!code) return;
+      roomId = code;
+      roomCodeEl.textContent = roomId;
+      document.getElementById('menu').style.display='none';
+      document.getElementById('game').style.display='block';
+      const ref = db.ref('rooms/'+roomId);
       const snap = await ref.get();
-      if(!snap.exists()){
-        await ref.set({ createdAt: Date.now(), board: emptyBoard, turn: 'X', status: 'waiting', players: { X: uid, O: '' } });
-        role = 'X';
-      }else{
-        const data = snap.val();
-        if(!data.players?.X){ await ref.child('players/X').set(uid); role='X'; }
-        else if(data.players?.X===uid){ role='X'; }
-        else if(!data.players?.O){ await ref.child('players/O').set(uid); role='O'; }
-        else if(data.players?.O===uid){ role='O'; }
-        else { role='spectator'; }
-      }
-      youTag.textContent = role;
-      spectatorTag.style.display = role==='spectator' ? 'inline-flex' : 'none';
-
-      ref.on('value', (snap)=>{ if(snap.exists()) updateUI(snap.val()); });
-    }
-
-    function updateUI(g){
-      const bothSeated = Boolean(g.players?.X && g.players?.O);
-      if(g.status==='waiting' && bothSeated) db.ref(`rooms/${roomId}/status`).set('playing');
-      g.board.forEach((v, i)=>{ cells[i].textContent = v; });
-      const myTurn = role!=='spectator' && g.turn===role && g.status==='playing';
-      cells.forEach((c,i)=> c.disabled = !(myTurn && !g.board[i]));
-      let msg = '';
-      if(role==='spectator') msg += 'You are spectating. ';
-      if(g.status==='waiting') msg += 'Waiting for an opponent…';
-      if(g.status==='playing') msg += (role!=='spectator' ? (g.turn===role? 'Your move!' : 'Opponent’s move…') : `Turn: ${g.turn}`);
-      if(g.status==='X_won' || g.status==='O_won'){ msg = (role===g.status[0]? 'You win! 🎉' : (role==='spectator'? `${g.status[0]} wins!` : 'You lose.')); }
-      if(g.status==='draw') msg = 'Draw.';
-      statusEl.textContent = msg;
-      turnTag.textContent = g.status==='playing' ? g.turn : '—';
-    }
-
-    function checkWinner(b){
-      for(const combo of wins){ const [a,b2,c] = combo; if(b[a] && b[a]===b[b2] && b[a]===b[c]) return {player:b[a], combo}; }
-      if(b.every(x=>x)) return {player:'draw', combo:[]}; return null;
-    }
+      if(!snap.exists()){ alert("Room not found!"); location.reload(); return; }
+      const g = snap.val();
+      if(!g.players.O){ await ref.child('players/O').set(uid); role='O'; }
+      else if(g.players.X===uid) role='X';
+      else if(g.players.O===uid) role='O';
+      else role='spectator';
+      ref.on('value', snap=>{ if(snap.exists()) updateUI(snap.val()); });
+    };
 
     async function makeMove(i){
-      const ref = db.ref(`rooms/${roomId}`);
-      const snap = await ref.get(); if(!snap.exists()) return;
+      if(!roomId) return;
+      const ref = db.ref('rooms/'+roomId);
+      const snap = await ref.get();
+      if(!snap.exists()) return;
       const g = snap.val();
-      if(g.status!=='playing' || g.turn!==role || g.board[i]) return;
-      const nb = g.board.slice(); nb[i] = role;
+      if(g.status!=='playing'||g.turn!==role||g.board[i]) return;
+      const nb = g.board.slice(); nb[i]=role;
       const w = checkWinner(nb);
-      const updates = { board: nb, turn: (role==='X'?'O':'X') };
-      if(w){ updates.status = w.player==='draw'?'draw':`${w.player}_won`; updates.turn='—'; }
+      const updates={board:nb,turn:(role==='X'?'O':'X')};
+      if(w){ updates.status=w==='draw'?'draw':w+'_won'; updates.turn='—'; }
       await ref.update(updates);
     }
 
-    async function resetGame(){ db.ref(`rooms/${roomId}`).update({ board: emptyBoard, status:'waiting', turn:'X' }); }
-    async function swapSeat(){ const ref = db.ref(`rooms/${roomId}/players`); const p = (await ref.get()).val()||{}; if(role==='X'&&!p.O){await ref.update({X:'',O:uid});role='O';} else if(role==='O'&&!p.X){await ref.update({O:'',X:uid});role='X';} youTag.textContent=role; }
+    function checkWinner(b){
+      for(const [a,b2,c] of wins){ if(b[a]&&b[a]===b[b2]&&b[a]===b[c]) return b[a]; }
+      if(b.every(x=>x)) return 'draw'; return null;
+    }
 
-    $('#copyLinkBtn').onclick = ()=>{navigator.clipboard.writeText(location.href).then(()=>showToast('Link copied!'));};
-    $('#newRoomBtn').onclick = ()=>{location.href = location.pathname+'?room='+randomRoomId();};
-    $('#resetBtn').onclick = resetGame;
-    $('#swapBtn').onclick = swapSeat;
-    joinBtn.onclick = ()=>{ if(joinCodeInput.value){ location.href = location.pathname+'?room='+joinCodeInput.value; } };
+    function updateUI(g){
+      g.board.forEach((v,i)=>{ cells[i].textContent=v; });
+      const myTurn = role!=='spectator' && g.turn===role && g.status==='playing';
+      cells.forEach((c,i)=> c.disabled=!(myTurn && !g.board[i]));
+      if(g.status==='waiting'){ statusEl.textContent='Waiting for opponent…'; }
+      else if(g.status==='playing'){ statusEl.textContent = (g.turn===role? 'Your move!' : 'Opponent’s move…'); }
+      else if(g.status==='X_won'||g.status==='O_won'){ statusEl.textContent=(role===g.status[0]? 'You win!' : (role==='spectator'? g.status[0]+' wins!' : 'You lose.')); }
+      else if(g.status==='draw'){ statusEl.textContent='Draw.'; }
+    }
 
-    ensureRoom();
+    document.getElementById('resetBtn').onclick = ()=>{
+      if(roomId) db.ref('rooms/'+roomId).update({board:emptyBoard,status:'waiting',turn:'X'});
+    };
   </script>
 </body>
 </html>
