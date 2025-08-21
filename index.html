@@ -20,7 +20,7 @@
       border: 1px solid rgba(255,255,255,.1);
       border-radius: 20px;
       padding: 24px;
-      width: min(400px, 90%);
+      width: min(420px, 90%);
       text-align: center;
       box-shadow: 0 10px 30px rgba(0,0,0,.25);
     }
@@ -66,22 +66,26 @@
   </style>
 </head>
 <body>
+  <!-- Home Menu -->
   <div class="card" id="menu">
     <h1>Online Tic Tac Toe</h1>
     <button class="btn" id="hostBtn">Host Game</button>
     <button class="btn" id="joinBtn">Join Game</button>
+    <button class="btn" id="aiBtn">Play vs Computer</button>
     <div id="joinBox" style="display:none;">
       <input class="input" id="codeInput" placeholder="Enter code" />
       <button class="btn" id="enterBtn">Join</button>
     </div>
   </div>
 
+  <!-- Game Screen -->
   <div class="card" id="game" style="display:none;">
     <h1>Tic Tac Toe</h1>
     <div>Room Code: <b id="roomCode">—</b></div>
     <div class="grid" id="board"></div>
     <div class="status" id="statusLine">Connecting…</div>
     <button class="btn" id="resetBtn">Reset Game</button>
+    <button class="btn" id="backBtn">Back to Menu</button>
   </div>
 
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
@@ -103,9 +107,8 @@
     const uid = localStorage.getItem('ttt_uid') || (()=>{const u=crypto.randomUUID();localStorage.setItem('ttt_uid',u);return u})();
     const emptyBoard = Array(9).fill('');
     const wins = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
-    let role = 'spectator', roomId = null;
+    let role = 'spectator', roomId = null, aiMode = false;
     const cells = [];
-
     const boardEl = document.getElementById('board');
     const statusEl = document.getElementById('statusLine');
     const roomCodeEl = document.getElementById('roomCode');
@@ -121,6 +124,7 @@
     function randomRoomId(){ return Math.random().toString(36).slice(2,8).toUpperCase(); }
 
     document.getElementById('hostBtn').onclick = async ()=>{
+      aiMode=false;
       roomId = randomRoomId();
       roomCodeEl.textContent = roomId;
       document.getElementById('menu').style.display='none';
@@ -136,6 +140,7 @@
     };
 
     document.getElementById('enterBtn').onclick = async ()=>{
+      aiMode=false;
       const code = document.getElementById('codeInput').value.trim().toUpperCase();
       if(!code) return;
       roomId = code;
@@ -153,8 +158,27 @@
       ref.on('value', snap=>{ if(snap.exists()) updateUI(snap.val()); });
     };
 
+    document.getElementById('aiBtn').onclick = ()=>{
+      aiMode=true;
+      roomId="LOCAL_AI";
+      role="X";
+      roomCodeEl.textContent="AI";
+      document.getElementById('menu').style.display='none';
+      document.getElementById('game').style.display='block';
+      updateUI({board:emptyBoard, turn:"X", status:"playing"});
+    };
+
     async function makeMove(i){
-      if(!roomId) return;
+      if(aiMode){
+        if(cells[i].textContent) return;
+        cells[i].textContent=role;
+        let winner=checkWinner(getBoard());
+        if(winner){ showResult(winner); return; }
+        aiMove();
+        winner=checkWinner(getBoard());
+        if(winner){ showResult(winner); }
+        return;
+      }
       const ref = db.ref('rooms/'+roomId);
       const snap = await ref.get();
       if(!snap.exists()) return;
@@ -165,6 +189,24 @@
       const updates={board:nb,turn:(role==='X'?'O':'X')};
       if(w){ updates.status=w==='draw'?'draw':w+'_won'; updates.turn='—'; }
       await ref.update(updates);
+    }
+
+    function getBoard(){ return cells.map(c=>c.textContent); }
+    function aiMove(){
+      let board=getBoard();
+      // Simple AI: block or win
+      for(let [a,b,c] of wins){
+        if(board[a]==="O"&&board[b]==="O"&&!board[c]){cells[c].textContent="O";return;}
+        if(board[a]==="O"&&board[c]==="O"&&!board[b]){cells[b].textContent="O";return;}
+        if(board[b]==="O"&&board[c]==="O"&&!board[a]){cells[a].textContent="O";return;}
+      }
+      for(let [a,b,c] of wins){
+        if(board[a]==="X"&&board[b]==="X"&&!board[c]){cells[c].textContent="O";return;}
+        if(board[a]==="X"&&board[c]==="X"&&!board[b]){cells[b].textContent="O";return;}
+        if(board[b]==="X"&&board[c]==="X"&&!board[a]){cells[a].textContent="O";return;}
+      }
+      let empty=board.map((v,i)=>v?null:i).filter(x=>x!==null);
+      if(empty.length){ let choice=empty[Math.floor(Math.random()*empty.length)]; cells[choice].textContent="O"; }
     }
 
     function checkWinner(b){
@@ -182,8 +224,24 @@
       else if(g.status==='draw'){ statusEl.textContent='Draw.'; }
     }
 
+    function showResult(winner){
+      if(winner==="draw") statusEl.textContent="Draw!";
+      else statusEl.textContent=(winner===role?"You win!":"You lose.");
+    }
+
     document.getElementById('resetBtn').onclick = ()=>{
-      if(roomId) db.ref('rooms/'+roomId).update({board:emptyBoard,status:'waiting',turn:'X'});
+      if(aiMode){
+        cells.forEach(c=>c.textContent="");
+        statusEl.textContent="Your move!";
+      } else {
+        if(roomId) db.ref('rooms/'+roomId).update({board:emptyBoard,status:'waiting',turn:'X'});
+      }
+    };
+    document.getElementById('backBtn').onclick = ()=>{
+      document.getElementById('game').style.display='none';
+      document.getElementById('menu').style.display='block';
+      cells.forEach(c=>c.textContent="");
+      statusEl.textContent="Connecting…";
     };
   </script>
 </body>
