@@ -1,205 +1,227 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Online Tic Tac Toe — Host/Join + AI Modes</title>
-  <style>
-    :root{
-      --bg1:#141E30; --bg2:#243B55; --panel: rgba(255,255,255,.06);
-      --border: rgba(255,255,255,.12); --text:#e5e7eb;
-      --accent1:#06b6d4; --accent2:#a78bfa;
-      --win:#22c55e; --lose:#ef4444; --draw:#facc15; --muted:#9ca3af;
-    }
-    *{box-sizing:border-box}
-    body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;
-      background: linear-gradient(135deg,var(--bg1),var(--bg2));
-      color:var(--text); font:500 16px/1.35 system-ui,-apple-system,Segoe UI,Roboto,Ubuntu;
-    }
-    .card{width:min(460px,92vw); padding:22px; border-radius:20px; background:var(--panel);
-      border:1px solid var(--border); box-shadow:0 12px 40px rgba(0,0,0,.35)}
-    h1{margin:0 0 10px; font-size:26px; text-align:center}
-    .muted{color:var(--muted)}
-    .row{display:flex; gap:10px; align-items:center; flex-wrap:wrap; justify-content:center}
-    .btn{appearance:none;border:none;cursor:pointer;padding:12px 16px;border-radius:12px;font-weight:700;
-      color:#0b1020;background:linear-gradient(135deg,var(--accent1),var(--accent2));}
-    .btn.secondary{background:transparent;color:var(--text);border:1px solid var(--border)}
-    .btn:active{transform:translateY(1px)}
-    .input{width:200px;padding:10px 12px;border-radius:10px;border:1px solid var(--border);
-      background:rgba(0,0,0,.25);color:var(--text)}
-    .grid{display:grid; grid-template-columns:repeat(3,1fr); gap:10px; width:min(360px, 92vw); margin:16px auto}
-    .cell{aspect-ratio:1/1; border-radius:16px; border:1px solid var(--border); background:rgba(255,255,255,.05);
-      display:grid; place-items:center; font-weight:900; font-size:clamp(42px,8vw,72px); cursor:pointer; user-select:none;}
-    .cell[disabled]{opacity:.55; cursor:not-allowed}
-    .status{margin:8px 0 0; text-align:center; font-weight:700}
-    .sub{margin:6px 0 0; text-align:center; font-size:13px; color:var(--muted)}
-    .pill{display:inline-flex; align-items:center; gap:6px; padding:6px 10px; border-radius:999px;
-      border:1px solid var(--border); background:rgba(255,255,255,.06); font-weight:800}
-    .overlay{position:fixed; top:0; left:0; width:100%; height:100%; display:none;
-      align-items:flex-end; justify-content:center; background:rgba(0,0,0,.5); z-index:50;}
-    .popup{width:100%; max-width:480px; height:50%; background:var(--panel); border:2px solid var(--border);
-      border-radius:20px 20px 0 0; padding:20px; text-align:center; display:flex;
-      flex-direction:column; align-items:center; justify-content:center;}
-    .popup.win{color:var(--win);} .popup.lose{color:var(--lose);} .popup.draw{color:var(--draw);}
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tic Tac Toe Online 3D</title>
+<style>
+  body { font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; background: #f0f0f0; margin:0; overflow: hidden;}
+  #game, #menu { display: none; flex-direction: column; align-items: center; }
+  #menu { display:flex; }
+  #board { display: grid; grid-template: repeat(3, 100px) / repeat(3, 100px); gap: 5px; margin: 20px; perspective: 1000px;}
+  .cell { background: white; display: flex; justify-content: center; align-items: center; font-size: 2em; cursor: pointer; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.2); transform-style: preserve-3d; transition: transform 0.5s;}
+  .cell.played { transform: rotateY(180deg); }
+  #popup { display: none; position: fixed; top:50%; left:50%; transform: translate(-50%, -50%); background: #fff; padding: 30px; border-radius: 15px; text-align: center; box-shadow: 0 5px 15px rgba(0,0,0,0.3); animation: popupAppear 0.5s forwards;}
+  #popup h2 { margin: 0 0 20px 0; }
+  button { padding: 10px 20px; margin: 5px; border:none; border-radius: 10px; cursor:pointer; font-size:1em; background: #3498db; color: #fff; transition: transform 0.2s;}
+  button:hover { transform: scale(1.1); }
+  @keyframes popupAppear { from {transform: translate(-50%, -60%) scale(0);} to {transform: translate(-50%, -50%) scale(1);} }
+  .win-line { position: absolute; height: 5px; background: red; transform-origin: left; animation: drawLine 0.5s forwards;}
+  @keyframes drawLine { from {width:0;} to {width:100%;} }
+  canvas { position: fixed; top:0; left:0; pointer-events:none; }
+</style>
 </head>
 <body>
-  <!-- MENU -->
-  <div class="card" id="menu">
-    <h1>Online Tic Tac Toe</h1>
-    <p class="muted" style="text-align:center;margin-top:0">Choose how you want to play.</p>
-    <div class="row" style="margin-top:8px">
-      <button class="btn" id="hostBtn">Host Game</button>
-      <button class="btn" id="joinBtn">Join Game</button>
-    </div>
-    <div class="row" id="joinBox" style="margin-top:10px; display:none">
-      <input class="input" id="codeInput" placeholder="Enter code" />
-      <button class="btn" id="enterBtn">Join</button>
-    </div>
-    <hr style="border:none;border-top:1px solid var(--border); margin:16px 0">
-    <div style="text-align:center; font-weight:800">Play vs Computer</div>
-    <div class="row" style="margin-top:8px">
-      <select id="aiLevel" class="input" style="width:180px">
-        <option value="easy">Easy</option>
-        <option value="medium">Medium</option>
-        <option value="hard">Hard (unbeatable)</option>
-      </select>
-      <button class="btn" id="aiBtn">Start</button>
-    </div>
-    <p class="sub" id="firebaseHint">⚠️ Firebase config already added for online play.</p>
-  </div>
 
-  <!-- GAME -->
-  <div class="card" id="game" style="display:none">
-    <h1>Tic Tac Toe</h1>
-    <div class="row" style="justify-content:space-between">
-      <div class="pill">Room: <span id="roomCode">—</span></div>
-      <div class="pill">You: <span id="roleTag">—</span></div>
-      <div class="pill">Turn: <span id="turnTag">—</span></div>
-    </div>
-    <div class="grid" id="board"></div>
-    <div class="status" id="statusLine">Ready</div>
-    <div class="row" style="margin-top:10px">
-      <button class="btn" id="resetBtn">Reset</button>
-      <button class="btn secondary" id="backBtn">Back to Home</button>
-    </div>
-  </div>
+<div id="menu">
+  <h1>Tic Tac Toe</h1>
+  <button onclick="startGame('online')">Play Online</button>
+  <button onclick="startGame('easy')">AI Easy</button>
+  <button onclick="startGame('medium')">AI Medium</button>
+  <button onclick="startGame('hard')">AI Hard</button>
+</div>
 
-  <!-- POPUP -->
-  <div class="overlay" id="overlay">
-    <div class="popup" id="popupBox">
-      <h2 id="popupMsg">Result</h2>
-      <button class="btn" id="popupBtn">Play Again</button>
-    </div>
-  </div>
+<div id="game">
+  <div id="board"></div>
+  <button onclick="goHome()">Back to Menu</button>
+</div>
 
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
-  <script>
-    // ✅ Your Firebase config (corrected with your region DB URL)
-    const firebaseConfig = {
-      apiKey: "AIzaSyBqclaY05LdjOKkzCBEZKfLNaD7E-Fx1yI",
-      authDomain: "xoti-d936b.firebaseapp.com",
-      databaseURL: "https://xoti-d936b-default-rtdb.asia-southeast1.firebasedatabase.app",
-      projectId: "xoti-d936b",
-      storageBucket: "xoti-d936b.firebasestorage.app",
-      messagingSenderId: "1079004196497",
-      appId: "1:1079004196497:web:08e2ddf8fae7704e3e9930",
-      measurementId: "G-JE426VGG4K"
-    };
+<div id="popup">
+  <h2 id="popupText"></h2>
+  <button onclick="closePopup()">OK</button>
+</div>
 
-    let firebaseReady=false; try{ if(firebaseConfig.apiKey){ firebase.initializeApp(firebaseConfig); firebaseReady=true; } }catch(e){}
-    const db=firebaseReady?firebase.database():null;
+<canvas id="confetti"></canvas>
 
-    const $=q=>document.querySelector(q);
-    const menu=$('#menu'), game=$('#game'), boardEl=$('#board');
-    const statusEl=$('#statusLine'), roomCodeEl=$('#roomCode'), roleTag=$('#roleTag'), turnTag=$('#turnTag');
-    const overlay=$('#overlay'), popupBox=$('#popupBox'), popupMsg=$('#popupMsg');
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.1.0/firebase-app.js";
+import { getDatabase, ref, onValue, set } from "https://www.gstatic.com/firebasejs/10.1.0/firebase-database.js";
 
-    let board=Array(9).fill('');
-    let turn='X';
-    let myRole=null, room=null, aiMode=null;
-    const wins=[[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
-    const cells=[];
+// Firebase config (replace with your own)
+const firebaseConfig = {
+  apiKey: "YOUR_API_KEY",
+  authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+  databaseURL: "https://YOUR_PROJECT_ID.firebaseio.com",
+  projectId: "YOUR_PROJECT_ID",
+  storageBucket: "YOUR_PROJECT_ID.appspot.com",
+  messagingSenderId: "YOUR_SENDER_ID",
+  appId: "YOUR_APP_ID"
+};
 
-    for(let i=0;i<9;i++){
-      const c=document.createElement('button');
-      c.className='cell';
-      c.addEventListener('click',()=>onCellClick(i));
-      boardEl.appendChild(c);
-      cells.push(c);
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+
+let boardState = Array(9).fill('');
+let player = 'X';
+let onlineGameId = null;
+let isMyTurn = true;
+let aiMode = null;
+
+const boardEl = document.getElementById('board');
+const menuEl = document.getElementById('menu');
+const gameEl = document.getElementById('game');
+const popupEl = document.getElementById('popup');
+const popupText = document.getElementById('popupText');
+const confettiCanvas = document.getElementById('confetti');
+const ctx = confettiCanvas.getContext('2d');
+let confettiParticles = [];
+
+// Resize canvas
+function resizeCanvas(){confettiCanvas.width = window.innerWidth; confettiCanvas.height = window.innerHeight;}
+window.addEventListener('resize', resizeCanvas);
+resizeCanvas();
+
+// Initialize board
+function drawBoard() {
+  boardEl.innerHTML = '';
+  boardState.forEach((cell, idx) => {
+    const div = document.createElement('div');
+    div.classList.add('cell');
+    if(cell!=='') div.classList.add('played');
+    div.textContent = cell;
+    div.onclick = () => handleMove(idx);
+    boardEl.appendChild(div);
+  });
+}
+
+// Handle move
+function handleMove(idx) {
+  if(boardState[idx] !== '' || (!isMyTurn && onlineGameId)) return;
+  boardState[idx] = player;
+  drawBoard();
+  if(checkWin(player)) { showPopup(player + ' Wins!'); winEffect(); syncBoard(); return;}
+  else if(boardState.every(c=>c!=='')) { showPopup('Draw!'); syncBoard(); return; }
+
+  if(onlineGameId){ isMyTurn = false; syncBoard(); }
+  else if(aiMode){ player = player==='X'?'O':'X'; aiMove(); player = player==='X'?'O':'X'; }
+  else{ player = player==='X'?'O':'X'; }
+}
+
+// AI Move
+function aiMove() {
+  let empty = boardState.map((v,i)=>v===''?i:null).filter(v=>v!==null);
+  let move;
+  if(aiMode==='easy'){ move = empty[Math.floor(Math.random()*empty.length)]; }
+  else if(aiMode==='medium'){ move = findWinningMove('O') || findWinningMove('X') || empty[Math.floor(Math.random()*empty.length)]; }
+  else { move = findBestMove(boardState,'O'); }
+  boardState[move]='O';
+  drawBoard();
+  if(checkWin('O')) { showPopup('O Wins!'); winEffect(); }
+}
+
+// Simple AI functions
+function findWinningMove(p){
+  for(let i=0;i<9;i++){
+    if(boardState[i]===''){ boardState[i]=p; if(checkWin(p)){ boardState[i]=''; return i;} boardState[i]=''; }
+  }
+  return null;
+}
+
+// Minimax for Hard
+function findBestMove(bd, ai){
+  let bestScore=-Infinity; let move;
+  for(let i=0;i<9;i++){
+    if(bd[i]===''){ bd[i]=ai; let score=minimax(bd,false); bd[i]=''; if(score>bestScore){bestScore=score; move=i;} }
+  }
+  return move;
+}
+function minimax(bd,isMax){
+  if(checkWin('O')) return 1;
+  if(checkWin('X')) return -1;
+  if(bd.every(c=>c!=='')) return 0;
+  let scores=[];
+  for(let i=0;i<9;i++){ if(bd[i]===''){ bd[i]=isMax?'O':'X'; scores.push(minimax(bd,!isMax)); bd[i]=''; } }
+  return isMax?Math.max(...scores):Math.min(...scores);
+}
+
+// Check win
+function checkWin(p){
+  const wins=[[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
+  return wins.some(line=>line.every(i=>boardState[i]===p));
+}
+
+// Popup
+function showPopup(msg){popupText.textContent=msg; popupEl.style.display='block';}
+function closePopup(){popupEl.style.display='none'; boardState=Array(9).fill(''); drawBoard(); isMyTurn=true; player='X';}
+
+// Menu navigation
+function startGame(mode){
+  menuEl.style.display='none';
+  gameEl.style.display='flex';
+  boardState = Array(9).fill('');
+  drawBoard();
+  aiMode = (mode==='easy'||mode==='medium'||mode==='hard')?mode:null;
+  if(mode==='online') initOnlineGame();
+}
+function goHome(){menuEl.style.display='flex'; gameEl.style.display='none'; popupEl.style.display='none'; confettiParticles=[];}
+
+// Firebase Online
+function initOnlineGame(){
+  onlineGameId = 'game1'; // For testing only
+  const gameRef = ref(db, 'ticTacToe/'+onlineGameId+'/board');
+  onValue(gameRef, (snapshot)=>{
+    const data = snapshot.val();
+    if(data){
+      boardState = data.board;
+      isMyTurn = data.turn === player;
+      drawBoard();
     }
+  });
+  syncBoard();
+}
+function syncBoard(){
+  if(!onlineGameId) return;
+  const gameRef = ref(db, 'ticTacToe/'+onlineGameId+'/board');
+  set(gameRef, { board: boardState, turn: player==='X'?'O':'X' });
+}
 
-    function setBoardUI(){board.forEach((v,i)=>cells[i].textContent=v);} 
-    function checkWinner(b){
-      for(const [a,b2,c] of wins){if(b[a]&&b[a]===b[b2]&&b[a]===b[c])return{player:b[a]};}
-      if(b.every(x=>x))return{player:'draw'}; return null;
-    }
-    function showPopup(type){overlay.style.display='flex'; popupBox.className='popup '+type; popupMsg.textContent=(type==='win'?'You Win! 🎉':type==='lose'?'You Lose 💀':'Draw 🤝');}
-    $('#popupBtn').onclick=()=>{overlay.style.display='none'; resetBoard();};
+// Confetti effect
+function winEffect(){
+  for(let i=0;i<150;i++){
+    confettiParticles.push({
+      x: Math.random()*confettiCanvas.width,
+      y: Math.random()*confettiCanvas.height-100,
+      r: Math.random()*6+2,
+      d: Math.random()*10+5,
+      color: `hsl(${Math.random()*360},100%,50%)`,
+      tilt: Math.random()*10-10,
+      tiltAngleIncrement: Math.random()*0.07+0.05,
+      tiltAngle:0
+    });
+  }
+  requestAnimationFrame(drawConfetti);
+}
+function drawConfetti(){
+  ctx.clearRect(0,0,confettiCanvas.width,confettiCanvas.height);
+  confettiParticles.forEach((p,i)=>{
+    p.tiltAngle += p.tiltAngleIncrement;
+    p.y += (Math.cos(p.d)+3+p.r/2)/2;
+    p.x += Math.sin(0.1);
+    p.tilt = Math.sin(p.tiltAngle)*15;
+    ctx.beginPath();
+    ctx.lineWidth = p.r;
+    ctx.strokeStyle = p.color;
+    ctx.moveTo(p.x+p.tilt+ p.r/2, p.y);
+    ctx.lineTo(p.x+p.tilt, p.y+p.tilt+ p.r/2);
+    ctx.stroke();
+  });
+  confettiParticles = confettiParticles.filter(p=>p.y<confettiCanvas.height+20);
+  if(confettiParticles.length>0) requestAnimationFrame(drawConfetti);
+}
 
-    function resetBoard(){ board=Array(9).fill(''); turn='X'; setBoardUI(); statusEl.textContent='New game!'; if(aiMode) aiMove(); if(db&&room) db.ref('rooms/'+room).set({board,turn}); }
+drawBoard();
+menuEl.style.display='flex';
+</script>
 
-    function onCellClick(i){
-      if(board[i]|| (aiMode&&turn!==myRole)) return;
-      if(!aiMode && turn!==myRole) return;
-      board[i]=turn; turn=turn==='X'?'O':'X';
-      setBoardUI();
-      const w=checkWinner(board);
-      if(w){
-        showPopup(
-          w.player==='draw' ? 'draw' : 
-          (w.player===myRole ? 'win' : 'lose')
-        );
-        return;
-      }
-      if(db&&room) db.ref('rooms/'+room).set({board,turn});
-      if(aiMode && turn!=='X') aiMove();
-    }
-
-    function aiMove(){
-      if(!aiMode||checkWinner(board)) return;
-      let move=null;
-      if(aiMode==='easy'){
-        let empties=board.map((v,i)=>v?null:i).filter(x=>x!==null);
-        move=empties[Math.floor(Math.random()*empties.length)];
-      } else if(aiMode==='medium'){
-        move=findBestMove(board,'O') || randomMove();
-      } else if(aiMode==='hard'){
-        move=minimax(board,'O').index;
-      }
-      if(move!=null){ board[move]='O'; turn='X'; setBoardUI(); const w=checkWinner(board); if(w){ showPopup(w.player==='draw'?'draw':(w.player==='X'?'win':'lose')); }}
-    }
-
-    function randomMove(){ let empties=board.map((v,i)=>v?null:i).filter(x=>x!==null); return empties[Math.floor(Math.random()*empties.length)]; }
-    function findBestMove(b,player){
-      for(const [a,b2,c] of wins){ let line=[b[a],b[b2],b[c]]; if(line.filter(v=>v===player).length===2 && line.includes('')) return [a,b2,c].find(i=>!b[i]); }
-      return null;
-    }
-    function minimax(newBoard,player){
-      const avail=newBoard.map((v,i)=>v?null:i).filter(x=>x!==null);
-      const winner=checkWinner(newBoard);
-      if(winner){ if(winner.player==='X') return {score:-10}; if(winner.player==='O') return {score:10}; if(winner.player==='draw') return {score:0}; }
-      if(player==='O'){
-        let best={score:-Infinity};
-        for(let i of avail){ let b=[...newBoard]; b[i]='O'; let g=minimax(b,'X'); if(g.score>best.score){best={score:g.score,index:i}} }
-        return best;
-      } else {
-        let best={score:Infinity};
-        for(let i of avail){ let b=[...newBoard]; b[i]='X'; let g=minimax(b,'O'); if(g.score<best.score){best={score:g.score,index:i}} }
-        return best;
-      }
-    }
-
-    $('#resetBtn').onclick=resetBoard;
-    $('#backBtn').onclick=()=>{menu.style.display='block'; game.style.display='none'; aiMode=null; if(db&&room) db.ref('rooms/'+room).remove(); };
-    $('#hostBtn').onclick=()=>{ if(!firebaseReady){alert('Add Firebase config');return;} room=Math.random().toString(36).slice(2,7).toUpperCase(); db.ref('rooms/'+room).set({board,turn}); listenRoom(); myRole='X'; roomCodeEl.textContent=room; roleTag.textContent='X'; startGame(); };
-    $('#joinBtn').onclick=()=>{$('#joinBox').style.display='flex';};
-    $('#enterBtn').onclick=()=>{ room=$('#codeInput').value.toUpperCase(); if(room){ listenRoom(); myRole='O'; roomCodeEl.textContent=room; roleTag.textContent='O'; startGame(); } };
-    $('#aiBtn').onclick=()=>{ aiMode=$('#aiLevel').value; myRole='X'; startGame(); resetBoard(); };
-
-    function startGame(){ menu.style.display='none'; game.style.display='block'; resetBoard(); }
-    function listenRoom(){ if(!db) return; statusEl.textContent="Connecting..."; db.ref('rooms/'+room).on('value',snap=>{ if(!snap.exists()) return; const data=snap.val(); board=data.board; turn=data.turn; setBoardUI(); statusEl.textContent=turn+"'s turn"; }); }
-  </script>
 </body>
 </html>
