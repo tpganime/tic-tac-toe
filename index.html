@@ -96,11 +96,11 @@
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
   <script>
-    // ✅ Your Firebase config (with realtime DB URL)
+    // ✅ Your Firebase config (corrected with your region DB URL)
     const firebaseConfig = {
       apiKey: "AIzaSyBqclaY05LdjOKkzCBEZKfLNaD7E-Fx1yI",
       authDomain: "xoti-d936b.firebaseapp.com",
-      databaseURL: "https://xoti-d936b-default-rtdb.firebaseio.com",
+      databaseURL: "https://xoti-d936b-default-rtdb.asia-southeast1.firebasedatabase.app",
       projectId: "xoti-d936b",
       storageBucket: "xoti-d936b.firebasestorage.app",
       messagingSenderId: "1079004196497",
@@ -142,16 +142,19 @@
 
     function onCellClick(i){
       if(board[i]|| (aiMode&&turn!==myRole)) return;
+      if(!aiMode && turn!==myRole) return;
       board[i]=turn; turn=turn==='X'?'O':'X';
       setBoardUI();
       const w=checkWinner(board);
       if(w){
-        if(!aiMode){ showPopup(w.player===myRole?'win':w.player==='draw'?'draw':'lose'); }
-        else{ showPopup(w.player==='draw'?'draw':(w.player===myRole?'win':'lose')); }
+        showPopup(
+          w.player==='draw' ? 'draw' : 
+          (w.player===myRole ? 'win' : 'lose')
+        );
         return;
       }
       if(db&&room) db.ref('rooms/'+room).set({board,turn});
-      if(aiMode && turn!=='X'){ aiMove(); }
+      if(aiMode && turn!=='X') aiMove();
     }
 
     function aiMove(){
@@ -196,7 +199,7 @@
     $('#aiBtn').onclick=()=>{ aiMode=$('#aiLevel').value; myRole='X'; startGame(); resetBoard(); };
 
     function startGame(){ menu.style.display='none'; game.style.display='block'; resetBoard(); }
-    function listenRoom(){ if(!db) return; db.ref('rooms/'+room).on('value',snap=>{ if(!snap.exists()) return; const data=snap.val(); board=data.board; turn=data.turn; setBoardUI(); statusEl.textContent=turn+"'s turn"; }); }
+    function listenRoom(){ if(!db) return; statusEl.textContent="Connecting..."; db.ref('rooms/'+room).on('value',snap=>{ if(!snap.exists()) return; const data=snap.val(); board=data.board; turn=data.turn; setBoardUI(); statusEl.textContent=turn+"'s turn"; }); }
   </script>
 </body>
 </html>
